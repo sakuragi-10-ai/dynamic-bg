@@ -198,7 +198,6 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
                     return '';
                 } else {
                     console.debug('Match scored below threshold:', threshold);
-                    toastr.info('No background matched the scene well enough.');
                     return '';
                 }
             } else {
