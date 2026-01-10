@@ -3,54 +3,10 @@ import { stringFormat } from "../../../utils.js";
 import { loadSettings, registerSettingsListeners } from "./settings/settings.js";
 import { extension_settings } from '../../../extensions.js';
 import { background_settings } from "../../../../scripts/backgrounds.js";
-import { DEFAULT_THRESHOLD, extensionFolder, extensionName } from "./const.js";
+import { DEFAULT_THRESHOLD, dynamicBgPrompt, extensionFolder, extensionName, locationRegexList, movementRegexList, systemPrompt } from "./const.js";
 
 let is_pending_response = false;
 let user_msg_updated_background = false;
-
-const systemPrompt = `
-You are a precise location-matching evaluator. Your job is to rate how well each location in the <LOCATION_LIST> matches the physical setting where the characters are located, as described in the <SCENE_CONTEXT>.
-
-Rules:
-- Start your entire response immediately with <RESULT> — the very first characters must be <RESULT>
-- End your entire response with </RESULT> — the very last characters must be </RESULT>
-- Nothing before <RESULT>, nothing after </RESULT>
-- No code blocks, no backticks, no markdown, no explanations, no newlines outside the tags, no other text whatsoever
-- Use exact location names from <LOCATION_LIST>, no changes
-- Scores 0–100 (100 = perfect match for character location)
-- Rate only the locations in the current <LOCATION_LIST>
-
-Output format must be exactly one continuous line like this:
-<RESULT>name:score,name:score,name:score</RESULT>
-
-Your complete response must consist only of that single line.
-`;
-
-const dynamicBgPrompt = `
-EXAMPLE - DO NOT USE THIS DATA FOR SCORING:
-
-<SCENE_CONTEXT>
-They ran into a wine cellar and was surprised to see the korean art style and goth decor.
-</SCENE CONTEXT>
-<LOCATION_LIST>
-wine cellar
-korean tea room
-goth chamber
-central park
-</LOCATION_LIST>
-Output: <RESULT>wine cellar:100,korean tea room:30,goth chamber:20,central park:0</RESULT>
-
-
---- TASK ---
-<SCENE_CONTEXT>
-{1}
-</SCENE CONTEXT>
-<LOCATION_LIST>
-{0}
-</LOCATION_LIST>
-
-Output: 
-`; 
 
 async function handlerCharacterMessageRendered() {
     // If user message already changed background, don't try again
@@ -115,13 +71,13 @@ async function handleMessageRendered(event_type) {
         }
     }
 
-    const movementRegex =
-    /\b(follow(?:s)?|enter(?:s)?|step(?:s)?|walk(?:s)?|arrive(?:s)?|reach(?:es)?|appear(?:s)?|cross(?:es)?|push(?:es)?|head(?:s)?|go(?:es)?|move(?:s)?|travel(?:s)?|return(?:s)?|approach(?:es)?|leave(?:s)?|exit(?:s)?|depart(?:s)?|disappear(?:s)?|stumble(?:s)?|advance(?:s)?|proceed(?:s)?|stride(?:s)?|march(?:es)?|rush(?:es)?|dash(?:es)?|jog(?:s)?|run(?:s)?|sprint(?:s)?|wander(?:s)?|roam(?:s)?|drift(?:s)?|slip(?:s)?|sneak(?:s)?|creep(?:s)?|climb(?:s)?|descend(?:s)?|ascend(?:s)?)\b/i;
-    const movement_detected = movementRegex.test(text.toLowerCase());
-
-    const locationRegex =
-    /\b(room|hallway|corridor|building|city|town|village|forest|jungle|desert|mountain|cave|beach|ocean|ship|airplane|train|station|airport|market|shop|restaurant|cafe|bar|club|theater|museum|library|school|university|hospital|clinic|office|factory|warehouse|laboratory|studio|gym|park|garden|temple|church|mosque|synagogue|palace|castle|fortress|dungeon|space station)\b/i;
-    const location_detected = locationRegex.test(text.toLowerCase());
+    const regexLevel = extension_settings[extensionName]?.['regex-word-level'] || 0;
+    const movement_detected = movementRegexList.slice(0, regexLevel+1).some(regex =>
+        regex.test(text.toLowerCase())
+    );
+    const location_detected = locationRegexList.slice(0, regexLevel+1).some(regex =>
+        regex.test(text.toLowerCase())
+    );
 
     if (!is_pending_response && (matching_bg_option || movement_detected || location_detected)) {
         try {
@@ -159,10 +115,10 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
         console.log("typeof text: ", typeof text);
         if (!text || typeof text !== 'string') return null;
 
-        const resultMatch = text.match(/<RESULT>([\s\S]*?)<\/RESULT>/i);
+        const resultMatch = text.match(/<TOP_5_RESULTS>([\s\S]*?)<\/TOP_5_RESULTS>/i);
         const innerText = resultMatch
             ? resultMatch[1]
-            : text.replace("<RESULT>", "").replace("</RESULT>", "");
+            : text.replace("<TOP_5_RESULTS>", "").replace("</TOP_5_RESULTS>", "");
         console.log("extracted innerText:", innerText);
 
         const parts = innerText.split(',').map(p => p.trim()).filter(Boolean);

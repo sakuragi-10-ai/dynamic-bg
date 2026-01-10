@@ -15,12 +15,23 @@ function onFadingEnable_Change() {
     saveSettingsDebounced();
 }
 
+function onRegexWordLevel_Change() {
+    const value = Number($(this).val());
+    if (isNaN(value) || value < 0 || value > 2) {
+        console.error(`[${extensionName}] Invalid regex word level: ${value}`);
+        return;
+    }
+    extension_settings[extensionName]['regex-word-level'] = value;
+    saveSettingsDebounced();
+}
+
 /**
  * @return {void}
  */
 export function registerSettingsListeners() {
     $("#dynamic-bg-is-enabled").on("input", onEnable_Change);
     $("#dynamic-bg-is-fading-enabled").on("input", onFadingEnable_Change);
+    $("#dynamic-bg-regex-word-level").on("input", onRegexWordLevel_Change);
     setupMatchThresholdJQuery();
 }
 
@@ -33,6 +44,7 @@ export async function loadSettings() {
     
     $('#dynamic-bg-is-enabled').prop('checked', extension_settings[extensionName].is_enabled).trigger('input');
     $('#dynamic-bg-is-fading-enabled').prop('checked', extension_settings[extensionName].is_fading_enabled).trigger('input');
+    $('#dynamic-bg-regex-word-level').val(extension_settings[extensionName]['regex-word-level'] || 0);
     setupMatchThresholdHTML();
 }
 

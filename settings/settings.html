@@ -21,10 +21,27 @@
                 </label>
             </div>
 
-            <div class="flex-container flexFlowRow">
+            <div class="flex-container flexFlowRow marginTopBot5">
+                <div class="flex-container flexFlowColumn">
+                    <label for="dynamic-bg-regex-word-level" data-i18n="Trigger Words">Trigger Words</label>
+                    <small data-i18n="Select the word set to trigger dynamic backgrounds">Select the word set to trigger dynamic backgrounds</small>
+                    <select id="dynamic-bg-regex-word-level">
+                        <option value="0" data-i18n="Common Words">
+                            Common Words
+                        </option>
+                        <option value="1" data-i18n="Uncommon Words">
+                            Common + Uncommon Words
+                        </option>
+                        <option value="2" data-i18n="Rare Words">
+                            Common + Uncommon + Rare Words
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex-container flexFlowRow marginTopBot5">
                 <div class="flex-container flexFlowColumn">
                     <label for="dynamic-bg-match-threshold" class="title_restorable">
-                        <span>Background match threshold</span>
+                        <span>Match threshold</span>
                         <div id="dynamic-bg-match-threshold-restore" title="Restore default value"
                             class="right_menu_button">
                             <i class="fa-solid fa-clock-rotate-left fa-sm"></i>
