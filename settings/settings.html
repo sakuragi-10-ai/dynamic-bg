@@ -1,0 +1,42 @@
+<div id="dynamicbg_settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Dynamic Background</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <div class="inline-drawer-warning" style="margin:6px 0 0 8px;color:#a33;">
+                <small><strong>Warning:</strong> Background names must not include : or ,</small>
+            </div>
+            <div class="flex-container marginTopBot5">
+                <label class="checkbox_label" for="dynamic-bg-is-enabled" title="Enable or disable automatic background switching">
+                    <input id="dynamic-bg-is-enabled" type="checkbox" />
+                    Enable dynamic background
+                </label>
+            </div>
+            <div class="flex-container marginTopBot5">
+                <label class="checkbox_label" for="dynamic-bg-is-fading-enabled" title="Enable or disable fade-in/fade-out effect when switching backgrounds">
+                    <input id="dynamic-bg-is-fading-enabled" type="checkbox" />
+                    Fade-in/fade-out effect when switching backgrounds
+                </label>
+            </div>
+
+            <div class="flex-container flexFlowRow">
+                <div class="flex-container flexFlowColumn">
+                    <label for="dynamic-bg-match-threshold" class="title_restorable">
+                        <span>Background match threshold</span>
+                        <div id="dynamic-bg-match-threshold-restore" title="Restore default value"
+                            class="right_menu_button">
+                            <i class="fa-solid fa-clock-rotate-left fa-sm"></i>
+                        </div>
+                    </label>
+                    <small>Minimum match score (0.00–1.00) required to auto-switch background.</small>
+                    <input class="neo-range-slider" id="dynamic-bg-match-threshold" type="range" min="0" max="1" step="0.01" />
+                    <input class="neo-range-input" id="dynamic-bg-match-threshold-value" type="number" min="0" max="1" step="0.01" data-for="dynamic-bg-match-threshold" />
+                    
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

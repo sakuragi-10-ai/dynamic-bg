@@ -1,0 +1,48 @@
+import { setupMatchThresholdHTML, setupMatchThresholdJQuery } from './scale.js';
+import { extension_settings } from '../../../../extensions.js';
+import { saveSettingsDebounced } from '../../../../../script.js';
+import { defaultCommonSettings, extensionName } from '../const.js';
+
+function onEnable_Change() {
+    const value = Boolean($(this).prop("checked"));
+    extension_settings[extensionName].is_enabled = value;
+    saveSettingsDebounced();
+}
+
+function onFadingEnable_Change() {
+    const value = Boolean($(this).prop("checked"));
+    extension_settings[extensionName].is_fading_enabled = value;
+    saveSettingsDebounced();
+}
+
+/**
+ * @return {void}
+ */
+export function registerSettingsListeners() {
+    $("#dynamic-bg-is-enabled").on("input", onEnable_Change);
+    $("#dynamic-bg-is-fading-enabled").on("input", onFadingEnable_Change);
+    setupMatchThresholdJQuery();
+}
+
+/**
+ * @return {Promise<void>}
+ */
+export async function loadSettings() {
+    extension_settings[extensionName] = extension_settings[extensionName] || {};
+    setDefaultsForUndefined(extension_settings[extensionName]);
+    
+    $('#dynamic-bg-is-enabled').prop('checked', extension_settings[extensionName].is_enabled).trigger('input');
+    $('#dynamic-bg-is-fading-enabled').prop('checked', extension_settings[extensionName].is_fading_enabled).trigger('input');
+    setupMatchThresholdHTML();
+}
+
+/**
+ * @param {object} settings
+ */
+function setDefaultsForUndefined(settings) {
+    for (const settingKey in defaultCommonSettings) {
+        if (settings[settingKey] === undefined) {
+            settings[settingKey] = defaultCommonSettings[settingKey];
+        }
+    }
+}
