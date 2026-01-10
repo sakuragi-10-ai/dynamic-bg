@@ -1,9 +1,10 @@
-import { chat, chat_metadata, event_types, eventSource, generateRaw } from "../../../../script.js";
+import { chat, chat_metadata, event_types, eventSource } from "../../../../script.js";
 import { stringFormat } from "../../../utils.js";
 import { loadSettings, registerSettingsListeners } from "./settings/settings.js";
 import { extension_settings } from '../../../extensions.js';
 import { background_settings } from "../../../../scripts/backgrounds.js";
-import { DEFAULT_THRESHOLD, dynamicBgPrompt, extensionFolder, extensionName, locationRegexList, movementRegexList, systemPrompt } from "./const.js";
+import { DEFAULT_THRESHOLD, dynamicBgPrompt, extensionFolder, extensionName, movementRegexList, systemPrompt } from "./const.js";
+import { generateRaw } from "./utils.js";
 
 let isPendingResponse = false;
 let userMsgUpdatedBg = false;
@@ -112,11 +113,8 @@ async function handleMessageRendered(event_type) {
     const movement_detected = movementRegexList.slice(0, regexLevel+1).some(regex =>
         regex.test(text.toLowerCase())
     );
-    const location_detected = locationRegexList.slice(0, regexLevel+1).some(regex =>
-        regex.test(text.toLowerCase())
-    );
 
-    if (!isPendingResponse && (matching_bg_option || movement_detected || location_detected)) {
+    if (!isPendingResponse && (matching_bg_option || movement_detected)) {
         try {
             isPendingResponse = true;
             await scoreAndChooseBackground(text, matching_bg_option)

@@ -1,6 +1,6 @@
 export const extensionName = "dynamic-bg";
 export const extensionFolder = `scripts/extensions/third-party/${extensionName}`;
-export const DEFAULT_THRESHOLD = 0.6;
+export const DEFAULT_THRESHOLD = 0.8;
 export const defaultCommonSettings = {
     'is_enabled': true,
     'is-fading-enabled': true,
@@ -8,60 +8,48 @@ export const defaultCommonSettings = {
     'regex-word-level': 0
 };
 
-// MOVEMENT VERBS - more selective, avoids extremely common daily verbs
-const movementCommonRegex =
-  /\b(follow(?:s)?|enter(?:s)?|step(?:s)?|walk(?:s)?|arrive(?:s)?|reach(?:es)?|head(?:s)?|go(?:es)?|move(?:s)?|travel(?:s)?|return(?:s)?|approach(?:es)?|leave(?:s)?|exit(?:s)?|advance(?:s)?|proceed(?:s)?)\b/i;
+// MOVEMENT VERBS - STRICT (ultra-high confidence: almost always means actual traversal / entering a new discrete location)
+const movementStrictRegex = 
+/\b(enter(?:s)?|exit(?:s)?|leave(?:s)?|arrive(?:s)?|depart(?:s)?)\b/i;
 
-const movementUncommonRegex =
-  /\b(appear(?:s)?|disappear(?:s)?|cross(?:es)?|depart(?:s)?|stride(?:s)?|march(?:es)?|rush(?:es)?|dash(?:es)?|jog(?:s)?|sprint(?:s)?|wander(?:s)?|roam(?:s)?|climb(?:s)?|jump(?:s)?|leap(?:s)?|fly|flies|flew|teleport(?:s)?|warp(?:s)?|float(?:s)?|hover(?:s)?|stroll(?:s)?|saunter(?:s)?)\b/i;
+// MOVEMENT VERBS - COMMON (still strong movement, but allows some directed intent without strict boundary)
+const movementCommonRegex = 
+/\b(follow(?:s)?|cross(?:es)?|step(?:s)?|walk(?:s)?|move(?:s)?|head(?:s)?|stride(?:s)?|march(?:es)?|rush(?:es)?|dash(?:es)?|jog(?:s)?|sprint(?:s)?|reach(?:es)?)\b/i;
 
-const movementRareRegex =
-  /\b(drift(?:s)?|slip(?:s)?|sneak(?:s)?|creep(?:s)?|tiptoe(?:s)?|stumble(?:s)?|descend(?:s)?|ascend(?:s)?|crawl(?:s)?|prowl(?:s)?|limp(?:s)?|shuffle(?:s)?|trudge(?:s)?|stagger(?:s)?|vanish(?:es)?|materialize(?:s)?)\b/i;
+// MOVEMENT VERBS - UNCOMMON (stylized/specific, often implies path or manner with location change)
+const movementUncommonRegex = 
+/\b(wander(?:s)?|roam(?:s)?|climb(?:s)?|descend(?:s)?|ascend(?:s)?|jump(?:s)?|leap(?:s)?|fly|flies|flew|teleport(?:s)?|warp(?:s)?|float(?:s)?|hover(?:s)?|stroll(?:s)?|saunter(?:s)?|advance(?:s)?|proceed(?:s)?)\b/i;
 
-
-// LOCATIONS - trimmed very common/generic words, kept RP-relevant ones
-const locationCommonRegex =
-  /\b(room|hallway|corridor|bedroom|kitchen|bathroom|doorway|house|apartment|street|city|town|village|forest|woods|cave|beach|park|garden|shop|restaurant|cafe|bar|pub|library|station|platform)\b/i;
-
-const locationUncommonRegex =
-  /\b(mountain|mountains|river|lake|ocean|desert|island|castle|palace|temple|shrine|church|ruins|tower|mansion|lab|laboratory|warehouse|studio|gym|arena|theater|club|rooftop|alley|spaceship|ship|cabin|deck|bridge|base|outpost|camp|inn|tavern)\b/i;
-
-const locationRareRegex =
-  /\b(fortress|dungeon|nether|abyss|void|underworld|dreamscape|pocket\s+dimension|astral\s+plane|shadow\s+realm|floating\s+island|sky\s+city|citadel|sanctum|crypt|enchanted\s+grove|forbidden\s+zone)\b/i;
+// MOVEMENT VERBS - RARE (mostly manner/appearance, highest ambiguity for pure location change)
+const movementRareRegex = 
+/\b(appear(?:s)?|disappear(?:s)?|drift(?:s)?|slip(?:s)?|sneak(?:s)?|creep(?:s)?|tiptoe(?:s)?|stumble(?:s)?|crawl(?:s)?|prowl(?:s)?|limp(?:s)?|shuffle(?:s)?|trudge(?:s)?|stagger(?:s)?|vanish(?:es)?|materialize(?:s)?|return(?:s)?)\b/i;
 
 export const movementRegexList = [
-    movementCommonRegex,
-    movementUncommonRegex,
-    movementRareRegex,
-];
-
-export const locationRegexList = [
-    locationCommonRegex,
-    locationUncommonRegex,
-    locationRareRegex,
+  movementStrictRegex,
+  movementCommonRegex,
+  movementUncommonRegex,
+  movementRareRegex,
 ];
 
 export const systemPrompt = `
-You are a precise location-matching evaluator. Your job is to rate how well each location in the <LOCATION_LIST> matches the physical setting where the characters are located, as described in the <SCENE_CONTEXT>.
-Return the top 5 locations.
+You are a strict location-change detection and classification engine that only analyzes the physical descriptions of the scene context. Never make assumptions about abstract concepts, emotions, or non-physical elements.
+Before producing your final answer, internally compare all candidate locations against the scene evidence. Do not reveal this comparison.
 
 Rules:
-- Start your entire response immediately with <TOP_5_RESULTS> — the very first characters must be <TOP_5_RESULTS>
-- End your entire response with </TOP_5_RESULTS> — the very last characters must be </TOP_5_RESULTS>
-- Nothing before <TOP_5_RESULTS>, nothing after </TOP_5_RESULTS>
-- No code blocks, no backticks, no markdown, no explanations, no newlines outside the tags, no other text whatsoever
+- Use the same exact format for every TASK
+- No code blocks, no backticks, no markdown, no newlines outside the tags, no other text whatsoever
 - Use exact location names from <LOCATION_LIST>, no changes
 - Scores 0-100 (100 = perfect match for character location)
 - Rate only the locations in the current <LOCATION_LIST>
 
 Output format must be exactly one continuous line like this:
-<TOP_5_RESULTS>name:score,name:score,name:score,name:score,name:score</TOP_5_RESULTS>
+<CHANGED>bool</CHANGED><TOP_5_RESULTS>name:score,name:score,name:score,name:score,name:score</TOP_5_RESULTS>
 
 Your complete response must consist only of that single line.
 `;
 
 export const dynamicBgPrompt = `
---- TASK 1/3 ---
+--- TASK 1/4 ---
 <SCENE_CONTEXT>
 They ran into a wine cellar and was surprised to see the korean art style and goth decor.
 </SCENE CONTEXT>
@@ -74,11 +62,14 @@ pink bedroom
 haunted house
 gold course
 </LOCATION_LIST>
-Output: <TOP_5_RESULTS>wine cellar:100,korean tea room:30,goth chamber:20,central park:0,pink bedroom:0</TOP_5_RESULTS>
 
---- TASK 2/3 ---
+Output: <CHANGED>YES</CHANGED><TOP_5_RESULTS>wine cellar:100,korean tea room:30,goth chamber:20,central park:0,pink bedroom:0</TOP_5_RESULTS>
+
+Explanation: the text explicitly mentions "wine cellar" and "korean art style" and "goth decor", which directly correspond to the first three locations. The other locations are not mentioned at all.
+
+--- TASK 2/4 ---
 <SCENE_CONTEXT>
-Drift into void
+Drift into space, surrounded by the void.
 </SCENE CONTEXT>
 <LOCATION_LIST>
 wine cellar
@@ -88,9 +79,29 @@ central park
 haunted house
 gold course
 </LOCATION_LIST>
-Output: <TOP_5_RESULTS>haunted house:10,wine cellar:0,korean tea room:0,goth chamber:0,central park:0,</TOP_5_RESULTS>
 
---- TASK 3/3 ---
+Output: <CHANGED>YES</CHANGED><TOP_5_RESULTS>haunted house:10,wine cellar:0,korean tea room:0,goth chamber:0,central park:0</TOP_5_RESULTS>
+
+Explanation: the word "void" suggests a supernatural or eerie setting, which loosely aligns with "haunted house", but is not close to representing the actual location. The other locations have no relation to "void".
+
+--- TASK 3/4 ---
+<SCENE_CONTEXT>
+They looked around and saw tall trees and heard birds chirping.
+</SCENE CONTEXT>
+<LOCATION_LIST>
+wine cellar
+korean tea room
+goth chamber
+central park
+haunted house
+gold course
+</LOCATION_LIST>
+
+Output: <CHANGED>NO</CHANGED><TOP_5_RESULTS></TOP_5_RESULTS>
+
+Explanation: there are no descriptions hinting at movement or location change. The scene remains static.
+
+--- TASK 4/4 ---
 <SCENE_CONTEXT>
 {1}
 </SCENE CONTEXT>
