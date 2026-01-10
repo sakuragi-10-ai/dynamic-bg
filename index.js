@@ -5,21 +5,42 @@ import { extension_settings } from '../../../extensions.js';
 import { background_settings } from "../../../../scripts/backgrounds.js";
 import { DEFAULT_THRESHOLD, dynamicBgPrompt, extensionFolder, extensionName, locationRegexList, movementRegexList, systemPrompt } from "./const.js";
 
-let is_pending_response = false;
-let user_msg_updated_background = false;
+let isPendingResponse = false;
+let userMsgUpdatedBg = false;
+let bgOptions = [];
 
 async function handlerCharacterMessageRendered() {
     // If user message already changed background, don't try again
-    if (!is_pending_response && !user_msg_updated_background)
+    if (!isPendingResponse && !userMsgUpdatedBg)
         handleMessageRendered(event_types.CHARACTER_MESSAGE_RENDERED);
 
-    user_msg_updated_background = false;
+    userMsgUpdatedBg = false;
 }
 
 async function handleUserMessageRendered() {
-    if (!is_pending_response)
+    if (!isPendingResponse)
         handleMessageRendered(event_types.USER_MESSAGE_RENDERED);
 }
+
+const process_bgTitles = (bgTitles) =>
+    // process text and extract tags for background matching
+    // Extract all bracketed tags like [tag] (case-insensitive) and return them
+    // along with the original trimmed text and element.
+    bgTitles.map(x => {
+        const raw = (x.innerText || '').trim();
+        const tags = [];
+        const re = /\[([^\]]+)\]/g;
+        let m;
+        // iterate all matches and collect lowercase, trimmed tags
+        while ((m = re.exec(x.innerText || '')) !== null) {
+            const tag = (m[1] || '').trim().toLowerCase();
+            if (tag) tags.push(tag);
+        }
+        // remove all bracketed tags from the original text to produce the name
+        re.lastIndex = 0; // reset regex state
+        const name = raw.replace(re, ' ').trim();
+        return { element: x, text: name, tags };
+    }).filter(x => x.text.length > 0 || x.tags.length > 0);
 
 async function handleMessageRendered(event_type) {
     if (!extension_settings[extensionName]?.is_enabled) {
@@ -35,10 +56,26 @@ async function handleMessageRendered(event_type) {
     
     /** @type {HTMLElement[]} */
     const bgTitles = Array.from(document.querySelectorAll('#bg_menu_content .BGSampleTitle'));
-    const options = bgTitles.map(x => ({ element: x, text: x.innerText.trim() })).filter(x => x.text.length > 0);
-    console.log("DynamicBG: Found background options:", options);
+    bgOptions = process_bgTitles(bgTitles).filter(option => {
+        const tags = extension_settings[extensionName]?.tags || [];
+        if (tags.length === 0) return true; // no tag filtering
+
+        // check if any of the option's tags match the user-defined tags
+        for (const tag of tags) {
+            if (option.tags.includes(tag.toLowerCase())) {
+                return true;
+            }
+        }
+        return false; // no matching tags found
+    });
+    if (bgOptions.length == 0) {
+        toastr.warning('No backgrounds to choose from. Please upload some images to the "backgrounds" folder or remove tags in Extension Settings.');
+        return '';
+    }
+
+    console.log("DynamicBG: Found background options:", bgOptions);
     console.log("Current Background name: ", background_settings.name);
-    if (options.length == 0) {
+    if (bgOptions.length == 0) {
         toastr.warning('No backgrounds to choose from. Please upload some images to the "backgrounds" folder.');
         return '';
     }
@@ -61,7 +98,7 @@ async function handleMessageRendered(event_type) {
     if (!text) return '';
 
     let matching_bg_option = null;
-    for (const option of options) {
+    for (const option of bgOptions) {
         const title = (option.text || '').toLowerCase();
         if (!title) continue;
         if (text.toLowerCase().includes(title)) {
@@ -79,14 +116,14 @@ async function handleMessageRendered(event_type) {
         regex.test(text.toLowerCase())
     );
 
-    if (!is_pending_response && (matching_bg_option || movement_detected || location_detected)) {
+    if (!isPendingResponse && (matching_bg_option || movement_detected || location_detected)) {
         try {
-            is_pending_response = true;
+            isPendingResponse = true;
             await scoreAndChooseBackground(text, matching_bg_option)
         } catch (e) {
             console.error('Error scoring and choosing background:', e);
         } finally {
-            is_pending_response = false;
+            isPendingResponse = false;
         }
         return '';
     }
@@ -96,15 +133,7 @@ async function handleMessageRendered(event_type) {
 }
 
 async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
-    /** @type {HTMLElement[]} */
-    const bgTitles = Array.from(document.querySelectorAll('#bg_menu_content .BGSampleTitle'));
-    const options = bgTitles.map(x => ({ element: x, text: x.innerText.trim() })).filter(x => x.text.length > 0);
-    if (options.length == 0) {
-        toastr.warning('No backgrounds to choose from. Please upload some images to the "backgrounds" folder.');
-        return '';
-    }
-
-    const list = options.map(option => option.text).join('\n');
+    const list = bgOptions.map(option => option.text).join('\n');
     const prompt = stringFormat(dynamicBgPrompt, list, last_msg_str);
     console.log("DynamicBG prompt: ", prompt);
     const reply = await generateRaw({ systemPrompt: systemPrompt, prompt: prompt, instructOverride: true });
@@ -140,7 +169,7 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
         return out;
     }
 
-    const parsedScores = parseNameScoreReply(reply, options);
+    const parsedScores = parseNameScoreReply(reply, bgOptions);
     console.log("Parsed scores: ", parsedScores);
     if (parsedScores) {
         const threshold = (extension_settings[extensionName].match_threshold ?? DEFAULT_THRESHOLD) * 100;
@@ -148,14 +177,14 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
         // choose the highest scored name that exists in `options`
         parsedScores.sort((a, b) => b.score - a.score);
         for (const item of parsedScores) {
-            const match = options.find(o => o.text.toLowerCase() === item.name.toLowerCase());
+            const match = bgOptions.find(o => o.text.toLowerCase() === item.name.toLowerCase());
             if (match) {
                 if (item.score >= threshold) {
                     console.debug('Best match found:', match, item.score);
                     if (background_settings.name.includes(match.text + ".")) {
                         console.debug('Matched background is already set, not changing.');
                     } else {
-                        user_msg_updated_background = true;
+                        userMsgUpdatedBg = true;
                         if (extension_settings[extensionName]?.is_fading_enabled) {
                             $('#bg1').fadeOut(1000);
                             setTimeout(() => {

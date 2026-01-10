@@ -8,6 +8,25 @@
             <div class="inline-drawer-warning" style="margin:6px 0 0 8px;color:#a33;">
                 <small><strong>Warning:</strong> Background names must not include : or ,</small>
             </div>
+            <div class="flex-container flexFlowRow marginTopBot5">
+                <div class="flex-container flexFlowColumn">
+                    <label for="dynamic-bg-tags" data-i18n="Background Tags">Background Tags</label>
+                    <small data-i18n="[title]dynamic-bg-tags" title="Set a list of comma-separatedtags to limit which backgrounds will be automatically chosen.
+Example: hogwarts,hogsmead
+
+Background names must be in the following format:
+[tag 1][tag 2] background name
+
+Example:
+- [hogwarts] Hogwarts Castle at Night
+- [city][fancy] cafe">
+                    <span data-i18n="Background Tags">Specify a list of tags for background selection</span>
+                    <div class="fa-solid fa-circle-info opacity50p"></div>
+                </small>                    <div class="flex-container flexnowrap">
+                        <input id="dynamic-bg-tags" type="text" class="text_pole" data-i18n="[placeholder]dynamic-bg-tags" placeholder="Example: hogwarts,hogsmead" value="" />
+                    </div>
+                </div>
+            </div>
             <div class="flex-container marginTopBot5">
                 <label class="checkbox_label" for="dynamic-bg-is-enabled" title="Enable or disable automatic background switching">
                     <input id="dynamic-bg-is-enabled" type="checkbox" />
@@ -41,7 +60,7 @@
             <div class="flex-container flexFlowRow marginTopBot5">
                 <div class="flex-container flexFlowColumn">
                     <label for="dynamic-bg-match-threshold" class="title_restorable">
-                        <span>Match threshold</span>
+                        <span>Match Threshold</span>
                         <div id="dynamic-bg-match-threshold-restore" title="Restore default value"
                             class="right_menu_button">
                             <i class="fa-solid fa-clock-rotate-left fa-sm"></i>
