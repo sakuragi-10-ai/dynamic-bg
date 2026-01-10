@@ -15,6 +15,7 @@ Dynamic Background automatically suggests and switches the chat background based
 - The extension watches user and character messages.
 - If a background title (from the Backgrounds menu) appears in recent messages, it can instantly pick that background as a fallback.
 - If no direct name match is found, the extension detects movement/location keywords and (when enabled) asks the model to score how well each available background matches the scene. It then applies the top match if it passes the configured threshold.
+- Trigger presets: The extension uses built-in word-set presets for location and movement triggering. There are three preset levels — `Common`, `Uncommon`, and `Rare` — compiled into regex-based trigger lists. Users cannot add or remove entries; instead, choose a preset level from the dropdown to control detection sensitivity.
 
 ## Usage
 
@@ -27,6 +28,7 @@ Dynamic Background automatically suggests and switches the chat background based
 - **Enabled**: Toggle the extension on/off.
 - **Match threshold**: Minimum score (0–100) required for the model-based match to be accepted. Increase to be stricter, lower to be more permissive.
 - **Fading**: Enable/disable fade animation when changing backgrounds.
+- **Trigger words**: Pick a preset level: `Common`, `Uncommon`, or `Rare`. Each level switches the internal regex trigger set; these presets are built-in and not editable from the UI.
 
 You can find and change these options in the extension's settings panel (Extensions → Dynamic Background).
 
@@ -51,4 +53,5 @@ Examples to avoid:
 
 Why these rules matter
 - The extension reads the visible background titles from the UI and may parse model outputs with comma-separated lists. Commas and colons can break the expected name:score parsing or create mismatches.
+
 
