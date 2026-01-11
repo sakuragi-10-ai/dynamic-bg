@@ -15,8 +15,10 @@ Dynamic Background automatically suggests and switches the chat background based
 - The extension watches user and character messages.
 - If a background title (from the Backgrounds menu) appears in recent messages, it can instantly pick that background as a fallback.
 - If no direct name match is found, the extension detects movement/location keywords and (when enabled) asks the model to score how well each available background matches the scene. It then applies the top match if it passes the configured threshold.
-- Trigger presets: The extension uses built-in word-set presets for location and movement triggering. There are three preset levels — `Common`, `Uncommon`, and `Rare` — compiled into regex-based trigger lists. Users cannot add or remove entries; instead, choose a preset level from the dropdown to control detection sensitivity.
-- Background tags: Add "\[tags\]" in front of background names to pick and choose which backgrounds to use for dynamic switching. Supports multiple tags, for example, "\[city\]\[night\] cafe"
+- Trigger presets: The extension uses built-in word-set presets for location and movement triggering. There are four preset levels — `Strict`, `Common`, `Uncommon`, and `Rare` — compiled into regex-based trigger lists. Users cannot add or remove entries; instead, choose a preset level from the dropdown to control detection sensitivity.
+- Background tags: 
+   - Add "\[tags\]" in front of background names to pick and choose which backgrounds to use for dynamic switching. Supports multiple tags, for example, "\[city\]\[night\] cafe"
+   - Desired tags can be set in Settings.  Also, character tags prefixed with `BG:` will also be considered.  For example, a character with tag `BG:Hogwarts` will include `[hogwarts]library` background in the list.
 
 ## Usage
 
@@ -29,8 +31,8 @@ Dynamic Background automatically suggests and switches the chat background based
 - **Enabled**: Toggle the extension on/off.
 - **Match Threshold**: Minimum score (0–100) required for the model-based match to be accepted. Increase to be stricter, lower to be more permissive.
 - **Fading**: Enable/disable fade animation when changing backgrounds.
-- **Trigger Words**: Pick a preset level: `Common`, `Uncommon`, or `Rare`. Each level switches the internal regex trigger set; these presets are built-in and not editable from the UI.
-- **Background Tags**: Set a comma-separated list of tags to choose backgrounds from.  For exapmle, if this field is set to "hogwarts,city", any backgrounds prefixed with "\[hogwarts\]" or "\[city\]" will be analyzed for suitablility to swap in.
+- **Trigger Words**: Pick a preset level: `Strict`, `Common`, `Uncommon`, or `Rare`. Each level switches the internal regex trigger set; these presets are built-in and not editable from the UI.
+- **Background Tags**: Set a comma-separated list of tags to choose backgrounds from.  For exapmle, if this field is set to "hogwarts,city", any backgrounds prefixed with "\[hogwarts\]" or "\[city\]" will be analyzed for suitablility to swap in.  Note that character tags can also be used for the same purpose (see above for details)
 
 You can find and change these options in the extension's settings panel (Extensions → Dynamic Background).
 

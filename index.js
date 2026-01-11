@@ -1,10 +1,11 @@
 import { chat, chat_metadata, event_types, eventSource } from "../../../../script.js";
 import { stringFormat } from "../../../utils.js";
 import { loadSettings, registerSettingsListeners } from "./settings/settings.js";
-import { extension_settings } from '../../../extensions.js';
+import { extension_settings, getContext } from '../../../extensions.js';
 import { background_settings } from "../../../../scripts/backgrounds.js";
 import { DEFAULT_THRESHOLD, dynamicBgPrompt, extensionFolder, extensionName, movementRegexList, systemPrompt } from "./const.js";
 import { generateRaw } from "./utils.js";
+import { getTagKeyForEntity, getTagsList } from "../../../../scripts/tags.js";
 
 let isPendingResponse = false;
 let userMsgUpdatedBg = false;
@@ -23,7 +24,7 @@ async function handleUserMessageRendered() {
         handleMessageRendered(event_types.USER_MESSAGE_RENDERED);
 }
 
-const process_bgTitles = (bgTitles) =>
+const processBgTitles = (bgTitles) =>
     // process text and extract tags for background matching
     // Extract all bracketed tags like [tag] (case-insensitive) and return them
     // along with the original trimmed text and element.
@@ -43,6 +44,25 @@ const process_bgTitles = (bgTitles) =>
         return { element: x, text: name, tags };
     }).filter(x => x.text.length > 0 || x.tags.length > 0);
 
+const getCharacterTags = () => {
+    // Get current selected character tags (tag objects)
+    const ctx = getContext();
+    const currentChar = ctx?.characters?.[ctx.characterId];
+
+    if (!currentChar) {
+        console.log('No character selected');
+    } else {
+        const key = getTagKeyForEntity(currentChar); // robust key resolution
+        const tagObjects = getTagsList(key); // returns array of tag objects
+        const tagNames = tagObjects.map(t => t.name.toLowerCase()).filter(x => x.startsWith('bg:')).map(x => x.slice(3));
+        console.log('Tag objects:', tagObjects);
+        console.log('Tag names:', tagObjects.map(t => t.name));
+        return tagNames;
+    }
+
+    return [];
+}
+
 async function handleMessageRendered(event_type) {
     if (!extension_settings[extensionName]?.is_enabled) {
         return '';
@@ -57,18 +77,20 @@ async function handleMessageRendered(event_type) {
     
     /** @type {HTMLElement[]} */
     const bgTitles = Array.from(document.querySelectorAll('#bg_menu_content .BGSampleTitle'));
-    bgOptions = process_bgTitles(bgTitles).filter(option => {
-        const tags = extension_settings[extensionName]?.tags || [];
-        if (tags.length === 0) return true; // no tag filtering
+    const tags = (extension_settings[extensionName]?.tags || []).concat(getCharacterTags());
+    bgOptions = processBgTitles(bgTitles);
+    if (tags.length > 0)
+        bgOptions = bgOptions.filter(option => {
+            if (tags.length === 0) return true; // no tag filtering
 
-        // check if any of the option's tags match the user-defined tags
-        for (const tag of tags) {
-            if (option.tags.includes(tag.toLowerCase())) {
-                return true;
+            // check if any of the option's tags match the user-defined tags
+            for (const tag of tags) {
+                if (option.tags.includes(tag.toLowerCase())) {
+                    return true;
+                }
             }
-        }
-        return false; // no matching tags found
-    });
+            return false; // no matching tags found
+        });
     if (bgOptions.length == 0) {
         toastr.warning('No backgrounds to choose from. Please upload some images to the "backgrounds" folder or remove tags in Extension Settings.');
         return '';
@@ -136,74 +158,66 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
     console.log("DynamicBG prompt: ", prompt);
     const reply = await generateRaw({ systemPrompt: systemPrompt, prompt: prompt, instructOverride: true });
     console.log("DynamicBG reply: ", reply);
-    // If the model replied in the exact `name:score,name:score` format,
-    // parse it into an array of {name, score} objects and use that result.
-    function parseNameScoreReply(text, availableOptions) {
+
+    function parseNameScoreReply(text) {
         console.log("typeof text: ", typeof text);
         if (!text || typeof text !== 'string') return null;
 
-        const resultMatch = text.match(/<TOP_5_RESULTS>([\s\S]*?)<\/TOP_5_RESULTS>/i);
+        const resultMatch = text.match(/<RESULT>([\s\S]*?)<\/RESULT>/i);
         const innerText = resultMatch
             ? resultMatch[1]
-            : text.replace("<TOP_5_RESULTS>", "").replace("</TOP_5_RESULTS>", "");
+            : text.replace("<RESULT>", "").replace("</RESULT>", "");
         console.log("extracted innerText:", innerText);
 
         const parts = innerText.split(',').map(p => p.trim()).filter(Boolean);
-        if (parts.length === 0) return [];
+        if (parts.length === 0) return null;
 
-        const out = [];
-        for (const part of parts) {
-            const idx = part.lastIndexOf(':');
-            if (idx === -1) continue; // missing ':'
-            const name = part.slice(0, idx).trim();
-            const scoreStr = part.slice(idx + 1).trim();
-            console.log("name: ", name, " scoreStr: ", scoreStr);
-            if (!name || scoreStr.length === 0) continue;
-            const score = Number(scoreStr);
-            if (!Number.isFinite(score) || score < 0 || score > 100) continue;
-            out.push({ name, score });
-        }
+        const idx = innerText.lastIndexOf(':');
+        if (idx === -1) return null; // missing ':'
+        const name = innerText.slice(0, idx).trim();
+        const scoreStr = innerText.slice(idx + 1).trim();
+        console.log("name: ", name, " scoreStr: ", scoreStr);
+        const score = Number(scoreStr);
+        if (!Number.isFinite(score) || score < 0 || score > 100) return null; // invalid score
 
-        return out;
+        return { name, score };
     }
 
-    const parsedScores = parseNameScoreReply(reply, bgOptions);
-    console.log("Parsed scores: ", parsedScores);
-    if (parsedScores) {
-        const threshold = (extension_settings[extensionName].match_threshold ?? DEFAULT_THRESHOLD) * 100;
-        console.debug('Parsed model scores:', parsedScores);
-        // choose the highest scored name that exists in `options`
-        parsedScores.sort((a, b) => b.score - a.score);
-        for (const item of parsedScores) {
-            const match = bgOptions.find(o => o.text.toLowerCase() === item.name.toLowerCase());
-            if (match) {
-                if (item.score >= threshold) {
-                    console.debug('Best match found:', match, item.score);
-                    if (background_settings.name.includes(match.text + ".")) {
-                        console.debug('Matched background is already set, not changing.');
-                    } else {
-                        userMsgUpdatedBg = true;
-                        if (extension_settings[extensionName]?.is_fading_enabled) {
-                            $('#bg1').fadeOut(1000);
-                            setTimeout(() => {
-                                match.element.click();
-                                $('#bg1').fadeIn(1000);
-                            }, 1000);
-                        } else {
-                            match.element.click();
-                        }
-                    }  
-                    return '';
-                } else {
-                    console.debug('Match scored below threshold:', threshold);
-                    return '';
-                }
+    const nameAndScore = parseNameScoreReply(reply) || { name: "unknown", score: 100 };
+    if (nameAndScore.name == 'unknown') return '';
+    console.log("Name and Score: ", nameAndScore);
+    
+    const threshold = (extension_settings[extensionName].match_threshold ?? DEFAULT_THRESHOLD) * 100;
+    // choose the highest scored name that exists in `options`
+
+    const match = bgOptions.find(o => o.text.toLowerCase() === nameAndScore.name.toLowerCase());
+    if (match) {
+        if (nameAndScore.score >= threshold) {
+            console.debug('Match is above threshold:', match, nameAndScore.score);
+            if (background_settings.name.includes(match.text + ".")) {
+                console.debug('Matched background is already set, not changing.');
             } else {
-                console.debug('Parsed name not found among available backgrounds:', item.name);
-            }
+                userMsgUpdatedBg = true;
+                if (extension_settings[extensionName]?.is_fading_enabled) {
+                    $('#bg1').fadeOut(1000);
+                    setTimeout(() => {
+                        match.element.click();
+                        $('#bg1').fadeIn(1000);
+                    }, 1000);
+                } else {
+                    match.element.click();
+                }
+            }  
+            return '';
+        } else {
+            console.debug('Match scored below threshold:', threshold);
+            return '';
         }
-        console.debug('Parsed names not found among available backgrounds, falling back.');
+    } else {
+        console.debug('Parsed name not found among available backgrounds:', nameAndScore.name);
     }
+    
+    console.debug('Parsed names not found among available backgrounds, falling back.');
 
     if (default_bg_option) {
         console.debug('Fallback choosing background:', default_bg_option);
