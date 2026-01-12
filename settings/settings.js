@@ -5,13 +5,13 @@ import { defaultCommonSettings, extensionName } from '../const.js';
 
 function onEnable_Change() {
     const value = Boolean($(this).prop("checked"));
-    extension_settings[extensionName].is_enabled = value;
+    extension_settings[extensionName]['is-enabled'] = value;
     saveSettingsDebounced();
 }
 
 function onFadingEnable_Change() {
     const value = Boolean($(this).prop("checked"));
-    extension_settings[extensionName].is_fading_enabled = value;
+    extension_settings[extensionName]['is-fading-enabled'] = value;
     saveSettingsDebounced();
 }
 
@@ -49,9 +49,9 @@ export function registerSettingsListeners() {
 export async function loadSettings() {
     extension_settings[extensionName] = extension_settings[extensionName] || {};
     setDefaultsForUndefined(extension_settings[extensionName]);
-    
-    $('#dynamic-bg-is-enabled').prop('checked', extension_settings[extensionName].is_enabled).trigger('input');
-    $('#dynamic-bg-is-fading-enabled').prop('checked', extension_settings[extensionName].is_fading_enabled).trigger('input');
+
+    $('#dynamic-bg-is-enabled').prop('checked', extension_settings[extensionName]['is-enabled']).trigger('input');
+    $('#dynamic-bg-is-fading-enabled').prop('checked', extension_settings[extensionName]['is-fading-enabled']).trigger('input');
     $('#dynamic-bg-tags').val((extension_settings[extensionName].tags || []).join(', '));
     $('#dynamic-bg-regex-word-level').val(extension_settings[extensionName]['regex-word-level'] || 0);
     setupMatchThresholdHTML();

@@ -50,13 +50,11 @@ const getCharacterTags = () => {
     const currentChar = ctx?.characters?.[ctx.characterId];
 
     if (!currentChar) {
-        console.log('No character selected');
+        console.log('DynamicBG: No character selected');
     } else {
         const key = getTagKeyForEntity(currentChar); // robust key resolution
         const tagObjects = getTagsList(key); // returns array of tag objects
         const tagNames = tagObjects.map(t => t.name.toLowerCase()).filter(x => x.startsWith('bg:')).map(x => x.slice(3));
-        console.log('Tag objects:', tagObjects);
-        console.log('Tag names:', tagObjects.map(t => t.name));
         return tagNames;
     }
 
@@ -64,7 +62,7 @@ const getCharacterTags = () => {
 }
 
 async function handleMessageRendered(event_type) {
-    if (!extension_settings[extensionName]?.is_enabled) {
+    if (!extension_settings[extensionName]?.['is-enabled']) {
         return '';
     }
 
@@ -96,8 +94,8 @@ async function handleMessageRendered(event_type) {
         return '';
     }
 
-    console.log("DynamicBG: Found background options:", bgOptions);
-    console.log("Current Background name: ", background_settings.name);
+    console.debug("DynamicBG: Found background options:", bgOptions);
+    console.debug("DynamicBG: Current Background name: ", background_settings.name);
     if (bgOptions.length == 0) {
         toastr.warning('No backgrounds to choose from. Please upload some images to the "backgrounds" folder.');
         return '';
@@ -141,33 +139,31 @@ async function handleMessageRendered(event_type) {
             isPendingResponse = true;
             await scoreAndChooseBackground(text, matching_bg_option)
         } catch (e) {
-            console.error('Error scoring and choosing background:', e);
+            console.error('DynamicBG: Error scoring and choosing background:', e);
         } finally {
             isPendingResponse = false;
         }
         return '';
     }
 
-    console.debug('No matching background patterns found in the last message.');
+    console.debug('DynamicBG:No matching background patterns found in the last message.');
     return '';
 }
 
 async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
     const list = bgOptions.map(option => option.text).join('\n');
     const prompt = stringFormat(dynamicBgPrompt, list, last_msg_str);
-    console.log("DynamicBG prompt: ", prompt);
+    console.debug("DynamicBG prompt: ", prompt);
     const reply = await generateRaw({ systemPrompt: systemPrompt, prompt: prompt, instructOverride: true });
-    console.log("DynamicBG reply: ", reply);
+    console.debug("DynamicBG reply: ", reply);
 
     function parseNameScoreReply(text) {
-        console.log("typeof text: ", typeof text);
         if (!text || typeof text !== 'string') return null;
 
         const resultMatch = text.match(/<RESULT>([\s\S]*?)<\/RESULT>/i);
         const innerText = resultMatch
             ? resultMatch[1]
             : text.replace("<RESULT>", "").replace("</RESULT>", "");
-        console.log("extracted innerText:", innerText);
 
         const parts = innerText.split(',').map(p => p.trim()).filter(Boolean);
         if (parts.length === 0) return null;
@@ -176,7 +172,6 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
         if (idx === -1) return null; // missing ':'
         const name = innerText.slice(0, idx).trim();
         const scoreStr = innerText.slice(idx + 1).trim();
-        console.log("name: ", name, " scoreStr: ", scoreStr);
         const score = Number(scoreStr);
         if (!Number.isFinite(score) || score < 0 || score > 100) return null; // invalid score
 
@@ -185,20 +180,19 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
 
     const nameAndScore = parseNameScoreReply(reply) || { name: "unknown", score: 100 };
     if (nameAndScore.name == 'unknown') return '';
-    console.log("Name and Score: ", nameAndScore);
-    
-    const threshold = (extension_settings[extensionName].match_threshold ?? DEFAULT_THRESHOLD) * 100;
+    console.debug("DynamicBGName and Score: ", nameAndScore);
+
+    const threshold = (extension_settings[extensionName]['match-threshold'] ?? DEFAULT_THRESHOLD) * 100;
     // choose the highest scored name that exists in `options`
 
     const match = bgOptions.find(o => o.text.toLowerCase() === nameAndScore.name.toLowerCase());
     if (match) {
         if (nameAndScore.score >= threshold) {
-            console.debug('Match is above threshold:', match, nameAndScore.score);
             if (background_settings.name.includes(match.text + ".")) {
-                console.debug('Matched background is already set, not changing.');
+                console.debug('DynamicBG: Matched background is already set, not changing.');
             } else {
                 userMsgUpdatedBg = true;
-                if (extension_settings[extensionName]?.is_fading_enabled) {
+                if (extension_settings[extensionName]?.['is-fading-enabled']) {
                     $('#bg1').fadeOut(1000);
                     setTimeout(() => {
                         match.element.click();
@@ -210,20 +204,20 @@ async function scoreAndChooseBackground(last_msg_str, default_bg_option) {
             }  
             return '';
         } else {
-            console.debug('Match scored below threshold:', threshold);
+            console.debug('DynamicBG: Match scored below threshold:', threshold);
             return '';
         }
     } else {
-        console.debug('Parsed name not found among available backgrounds:', nameAndScore.name);
+        console.debug('DynamicBG: Parsed name not found among available backgrounds:', nameAndScore.name);
     }
     
-    console.debug('Parsed names not found among available backgrounds, falling back.');
+    console.debug('DynamicBG: Parsed names not found among available backgrounds, falling back.');
 
     if (default_bg_option) {
-        console.debug('Fallback choosing background:', default_bg_option);
+        console.debug('DynamicBG: Fallback choosing background:', default_bg_option);
         default_bg_option.element.click();
     } else {
-        console.debug('No fallback background to choose, don\'t do anything.');
+        console.debug('DynamicBG: No fallback background to choose, don\'t do anything.');
     }
     return '';
 }

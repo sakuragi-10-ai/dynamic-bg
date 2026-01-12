@@ -1,11 +1,11 @@
 export const extensionName = "dynamic-bg";
 export const extensionFolder = `scripts/extensions/third-party/${extensionName}`;
-export const DEFAULT_THRESHOLD = 0.95;
+export const DEFAULT_THRESHOLD = 0.8;
 export const defaultCommonSettings = {
     'is_enabled': true,
-    'is-fading-enabled': true,
+    'is_fading_enabled': true,
     'match_threshold': DEFAULT_THRESHOLD,
-    'regex-word-level': 0
+    'regex_word_level': 0
 };
 
 // MOVEMENT VERBS - STRICT (ultra-high confidence: almost always means actual traversal / entering a new discrete location)
